@@ -5,64 +5,124 @@ import plotly.express as px
 from PIL import Image
 import io
 
+# st.markdown("""
+# <style>
+# .stNumberInput input {
+#     text-align: right;
+# }
+# .stNumberInput::before {
+#     content: "¥";
+#     position: absolute;
+#     left: 5px;
+#     top: 50%;
+#     transform: translateY(-50%);
+# }
+# </style>
+# """, unsafe_allow_html=True)
+# 関数の設定
+# パスワード認証関数
+def authenticate(password):
+    if str(st.secrets['SALES']['pass']) == str(password):
+        st.success('認証成功')
+        return True
+    else:
+        st.error('認証失敗')
+        return False
 
 # アプリケーションのタイトル
 st.title('費用試算')
 
-default_dict = {
-    '市民向け':{
-        '単価':{
-            'シンプル':{
-                '新規': 208,
-                '更新': 31,
-            },
-            'フル':{
-                '新規': 1042,
-                '更新': 625,
-            },
-        },
-        '更新回数':2,
-    },
-    '事業者向け':{
-        '単価':{
-            'シンプル':{
-                '新規': 417,
-                '更新': 250,
-            },
-            'フル':{
-                '新規': 2083,
-                '更新': 938,
-            },
-        },
-        '更新回数':2,
-    },
-    '自治体向け':{
-        '単価':{
-            'シンプル':{
-                '新規': 417,
-                '更新': 250,
-            },
-            'フル':{
-                '新規': 2083,
-                '更新': 938,
-            },
-        },
-        '更新回数':2,  
-    }
-    
-}
+# 設定
+if 'sales_mode' not in st.session_state:
+    # st.write('初期値の設定')
+    st.session_state['sales_mode'] = False
 
+
+# p_word = st.text_input('setting',type='password')
+# st.write(p_word)
+# st.write(st.secrets['SALES']['pass'])
+# if str(st.secrets['SALES']['pass']) == str(p_word):
+#     st.write('認証成功')
+#     st.session_state['sales_mode'] = True
+# else:
+#     st.session_state['sales_mode'] = False
+
+
+# st.write(st.session_state['sales_mode'])
+
+# default_dict = {
+#     '市民向け':{
+#         '単価':{
+#             'シンプル':{
+#                 '新規': 208,
+#                 '更新': 31,
+#             },
+#             'フル':{
+#                 '新規': 1042,
+#                 '更新': 625,
+#             },
+#         },
+#         '更新回数':2,
+#     },
+#     '事業者向け':{
+#         '単価':{
+#             'シンプル':{
+#                 '新規': 417,
+#                 '更新': 250,
+#             },
+#             'フル':{
+#                 '新規': 2083,
+#                 '更新': 938,
+#             },
+#         },
+#         '更新回数':2,
+#     },
+#     '自治体向け':{
+#         '単価':{
+#             'シンプル':{
+#                 '新規': 417,
+#                 '更新': 250,
+#             },
+#             'フル':{
+#                 '新規': 2083,
+#                 '更新': 938,
+#             },
+#         },
+#         '更新回数':2,  
+#     }
+    
+# }
+container1 = st.sidebar.container()
 # 数値設定
-mode = st.sidebar.radio('ジャンル',default_dict.keys())
-st.sidebar.header(mode)
-tanka_simple_dict = default_dict[mode]['単価']['シンプル']
-initial_price = st.sidebar.number_input('初期単価', min_value=0, value=tanka_simple_dict['新規'])
-continuous_price = st.sidebar.number_input('継続単価', min_value=0, value=tanka_simple_dict['更新'])
-quantity = st.sidebar.number_input('制度数', min_value=1, value=10)
-area_count = st.sidebar.number_input('対象自治体数', min_value=1, value=5)
-purchase_frequency = st.sidebar.number_input('更新回数（年）', min_value=1, value=default_dict[mode]['更新回数'])
-other_initial_cost = st.sidebar.number_input('その他費用（初期）', min_value=0, value=0)
-other_continuous_cost = st.sidebar.number_input('その他費用（更新）', min_value=0, value=0)
+mode = container1.radio('ジャンル',['市民向け','事業者向け','自治体向け'])
+container1.header(mode)
+
+
+# パスワード認証の処理
+sales_on = st.sidebar.toggle("営業部専用設定")
+if sales_on:
+    p_word = st.sidebar.text_input('パスワードを入力', type='password')
+    if p_word:
+        st.session_state['sales_mode'] = authenticate(p_word)
+
+# st.write(st.session_state['sales_mode'])
+# tanka_simple_dict = default_dict[mode]['単価']['シンプル']
+tanka_simple_dict = st.secrets[mode]['単価']['シンプル']
+if st.session_state['sales_mode'] == True:
+     initial_price = st.sidebar.number_input('初期単価', min_value=0, value=tanka_simple_dict['新規'])
+     continuous_price = st.sidebar.number_input('継続単価', min_value=0, value=tanka_simple_dict['更新'])
+
+else:
+    initial_price = tanka_simple_dict['新規']
+    continuous_price = tanka_simple_dict['更新']
+
+
+
+quantity = container1.number_input('制度数', min_value=1, value=10)
+area_count = container1.number_input('対象自治体数', min_value=1, value=5)
+purchase_frequency = container1.number_input('更新回数（年）', min_value=1, value=st.secrets[mode]['更新回数'])
+other_initial_cost = container1.number_input('その他費用（初期）', min_value=0, value=0)
+other_continuous_cost = container1.number_input('その他費用（更新）', min_value=0, value=0)
 
 # 計算
 initial_total = (initial_price * quantity * area_count) + other_initial_cost
@@ -126,16 +186,16 @@ with col2:
 # st.caption('緑色の領域が予算内で購入可能な組み合わせを示しています。')
 
 # ユーザー入力
-st.sidebar.header('3Dグラフ設定')
+container1.header('3Dグラフ設定')
 budget_dict = {'初期費のみ': initial_price,
                '更新費のみ': continuous_price,
                '初期費+更新費':initial_price+continuous_price,
                }
-budget_select = st.sidebar.selectbox('費用',budget_dict.keys())
-max_quantity = st.sidebar.number_input('制度数の最大値', min_value=1, max_value=1000, value=100)
-max_area = st.sidebar.number_input('導入自治体数の最大値', min_value=1, max_value=1000, value=100)
+budget_select = container1.selectbox('費用',budget_dict.keys())
+max_quantity = container1.number_input('制度数の最大値', min_value=1, max_value=1000, value=100)
+max_area = container1.number_input('導入自治体数の最大値', min_value=1, max_value=1000, value=100)
 # unit_price = st.number_input('単価', min_value=100, max_value=10000, value=budget_dict[budget_select])
-max_budget = st.sidebar.number_input('最大予算額', min_value=1000, max_value=10000000, value=1000000)
+max_budget = container1.number_input('最大予算額', min_value=1000, max_value=10000000, value=1000000)
 
 # データ生成（固定）
 quantities = range(1, max_quantity + 1)
@@ -167,12 +227,28 @@ fig = px.scatter_3d(
 fig.update_layout(width=800, height=600)
 
 st.header('グラフ')
-st.write('青色: 予算内, 赤色: 予算超過')
 # Streamlitでグラフを表示
 st.plotly_chart(fig)
-
 # 凡例の説明
 st.write('青色: 予算内, 赤色: 予算超過')
+
+# p_word = st.text_input('setting',type='password')
+# st.write(p_word)
+# st.write(st.secrets['SALES']['pass'])
+# if str(st.secrets['SALES']['pass']) == str(p_word):
+#     st.write('認証成功')
+#     st.session_state['sales_mode'] = True
+
+#     #st.rerun()  # アプリを再実行して変更を反映
+# elif str(st.secrets['SALES']['pass']) != str(p_word):
+#     st.session_state['sales_mode'] = False
+
+# st.write(st.session_state['sales_mode'])
+
+
+
+
+    
 
 # def change_gif_speed(image, speed_factor):
 #     frames = []
