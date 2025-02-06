@@ -1,9 +1,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import datetime, re
+import time
 import plotly.express as px
 from PIL import Image
 import io
+from io import BytesIO
 
 # st.markdown("""
 # <style>
@@ -23,10 +26,10 @@ import io
 # パスワード認証関数
 def authenticate(password):
     if str(st.secrets['SALES']['pass']) == str(password):
-        st.success('認証成功')
+        st.sidebar.success('認証成功')
         return True
     else:
-        st.error('認証失敗')
+        st.sidebar.error('認証失敗')
         return False
 
 # アプリケーションのタイトル
@@ -50,11 +53,14 @@ if 'sales_mode' not in st.session_state:
 
 # st.write(st.session_state['sales_mode'])
 
-
+# サイドバーコンテナの設定
 container1 = st.sidebar.container()
 # 数値設定
+container1.header('予算の設定')
+max_budget = container1.number_input('予算額（¥）', min_value=1000, max_value=10000000, value=1000000)
+container1.header('コンテンツの設定')
 mode = container1.radio('ジャンル',['市民向け','事業者向け','自治体向け'])
-container1.header(mode)
+# container1.header()
 
 
 # パスワード認証の処理
@@ -66,10 +72,14 @@ if sales_on:
 
 # st.write(st.session_state['sales_mode'])
 # tanka_simple_dict = default_dict[mode]['単価']['シンプル']
+
+## 営業部専用項目の設定
 tanka_simple_dict = st.secrets[mode]['単価']['シンプル']
+profit_rate = st.secrets['SALES']['利益率']
 if st.session_state['sales_mode'] == True:
-     initial_price = st.sidebar.number_input('初期単価', min_value=0, value=tanka_simple_dict['新規'])
-     continuous_price = st.sidebar.number_input('継続単価', min_value=0, value=tanka_simple_dict['更新'])
+     initial_price = st.sidebar.number_input('初期単価（¥）', min_value=0, value=tanka_simple_dict['新規'])
+     continuous_price = st.sidebar.number_input('継続単価（¥）', min_value=0, value=tanka_simple_dict['更新'])
+     profit_rate = st.sidebar.number_input('利益率', min_value=0.0, value=st.secrets['SALES']['利益率'])
 
 else:
     initial_price = tanka_simple_dict['新規']
@@ -79,24 +89,86 @@ else:
 
 quantity = container1.number_input('制度数', min_value=1, value=10)
 area_count = container1.number_input('対象自治体数', min_value=1, value=5)
-purchase_frequency = container1.number_input('更新回数（年）', min_value=1, value=st.secrets[mode]['更新回数'])
-other_initial_cost = container1.number_input('その他費用（初期）', min_value=0, value=0)
-other_continuous_cost = container1.number_input('その他費用（更新）', min_value=0, value=0)
+purchase_frequency = container1.number_input('更新回数（年）', min_value=0, value=st.secrets[mode]['更新回数'])
+container1.header('その他費用の設定')
+container1.subheader('追加費用')
+other_initial_cost = container1.number_input('初期費用（¥）', min_value=0, value=0)
+other_continuous_cost = container1.number_input('更新費用（¥）', min_value=0, value=0)
 
 # 計算
+## 初期費
 initial_total = (initial_price * quantity * area_count) + other_initial_cost
+## 初期費（利益率上乗せ）
+selling_initial_total = initial_total / (1-profit_rate)
+## 更新費
 continuous_total = ((continuous_price * quantity * area_count) * purchase_frequency) + other_continuous_cost 
+## 更新費（利益率上乗せ）
+selling_continuous_total = continuous_total / (1-profit_rate)
+## 合計額
+selling_all = selling_initial_total+selling_continuous_total
+## 合計額と予算の差分
+diff_selling_all_budget = max_budget - selling_all
 
 # 結果表示
 st.header('計算結果')
-col1,col2,col3,col4 = st.columns(4)
-
+with st.container(border=True):
+    st.subheader('合計額')
+    metric_help_text = '合計額の下に、予算との差分額を表示します'
+    def total_metric(delta_color):
+        st.metric(f'初期費用＋更新費用（年{purchase_frequency}回）',
+                value=f'¥{selling_all:,.0f}',
+                delta=f'¥{diff_selling_all_budget:,.0f}',
+                delta_color=delta_color,
+                help=metric_help_text,
+                )
+    if diff_selling_all_budget > 0:
+        total_metric('normal')
+        # st.metric(f'初期費用＋更新費用（年{purchase_frequency}回）',
+        #         value=f'¥{selling_all:,.0f}',
+        #         delta=f'¥{diff_selling_all_budget:,.0f}',
+        #         delta_color='normal',
+        #         help=metric_help_text,
+        #         )
+    elif diff_selling_all_budget < 0:
+        total_metric('inverse')
+        # st.metric(f'初期費用＋更新費用（年{purchase_frequency}回）',
+        #         value=f'¥{selling_all:,.0f}',
+        #         delta=f'¥{diff_selling_all_budget:,.0f}',
+        #         delta_color='inverse',
+        #         help=metric_help_text,
+        #         )
+    else:
+        total_metric('off')
+        # st.metric(f'初期費用＋更新費用（年{purchase_frequency}回）',
+        #         value=f'¥{selling_all:,.0f}',
+        #         delta=f'¥{diff_selling_all_budget:,.0f}',
+        #         delta_color='none',
+        #         help=metric_help_text,
+        #         )
+col1, col2 = st.columns(2,border=True)
 with col1:
-    st.metric(label="初期費用",value=f'¥{initial_total}')
-# st.write(f'¥{initial_total:,.0f}')
+    st.subheader('初期費用')
+    st.metric(f'見積価格',f'¥{selling_initial_total:,.0f}')
+    if st.session_state['sales_mode'] == True:
+        st.metric(f'社内原価',f'¥{initial_total:,.0f}')
+
 with col2:
-    st.metric(label=f"更新費用（年{purchase_frequency}回）",value=f'¥{continuous_total}')
-# st.write(f'¥{continuous_total:,.0f}')
+    st.subheader(f'更新費用（年{purchase_frequency}回）')
+    st.metric(f'見積価格',f'¥{selling_continuous_total:,.0f}')
+    if st.session_state['sales_mode'] == True:
+        st.metric(f'社内原価',f'¥{continuous_total:,.0f}')
+# with col1:
+#     st.subheader('社内原価')
+#     col1_1, col1_2 = st.columns(2)
+#     col1_1.metric(label="初期費用",value=f'¥{initial_total:,}')
+#     col1_2.metric(label=f"更新費用（年{purchase_frequency}回）",value=f'¥{continuous_total}')
+# with col2:
+#     st.subheader('費用見積もり')
+#     col2_1, col2_2 = st.columns(2)
+    
+#     col2_1.metric(label="初期費用",value=f'¥{selling_initial_total:,}')
+#     col2_2.metric(label=f"更新費用（年{purchase_frequency}回）",value=f'¥{continuous_total}')    
+    
 
 # グラフ作成
 # st.header('数値の関係性')
@@ -154,7 +226,7 @@ budget_select = container1.selectbox('費用',budget_dict.keys())
 max_quantity = container1.number_input('制度数の最大値', min_value=1, max_value=1000, value=100)
 max_area = container1.number_input('導入自治体数の最大値', min_value=1, max_value=1000, value=100)
 # unit_price = st.number_input('単価', min_value=100, max_value=10000, value=budget_dict[budget_select])
-max_budget = container1.number_input('最大予算額', min_value=1000, max_value=10000000, value=1000000)
+# max_budget = container1.number_input('予算額', min_value=1000, max_value=10000000, value=1000000)
 
 # データ生成（固定）
 quantities = range(1, max_quantity + 1)
@@ -191,6 +263,9 @@ st.plotly_chart(fig)
 # 凡例の説明
 st.write('青色: 予算内, 赤色: 予算超過')
 
+st.header('メモ')
+st.write('一番右の「備考」列のみ編集可')
+
 # p_word = st.text_input('setting',type='password')
 # st.write(p_word)
 # st.write(st.secrets['SALES']['pass'])
@@ -204,9 +279,86 @@ st.write('青色: 予算内, 赤色: 予算超過')
 
 # st.write(st.session_state['sales_mode'])
 
+# セッション状態の初期化
+if 'df' not in st.session_state:
+    st.session_state.df = pd.DataFrame({
+        '予算額': [],
+        'ジャンル': [],
+        '制度数': [],
+        '自治体数': [],
+        '追加費用_初期':[],
+        '初期費用':[],
+        '更新回数':[],
+        '追加費用_更新':[],
+        '更新費用': [],
+        '合計額': [],
+        '備考':[],
+    })
 
 
+# 入力フィールドの作成
 
+
+# 「今の設定を追加」ボタン
+if st.button('今の設定を追加'):
+    new_row = pd.DataFrame({
+        '予算額': [max_budget],
+        'ジャンル': [mode],
+        '制度数': [quantity],
+        '自治体数': [area_count],
+        '追加費用_初期':[other_initial_cost],
+        '初期費用':[selling_initial_total],
+        '更新回数':[purchase_frequency],
+        '追加費用_更新':[other_continuous_cost],
+        '更新費用': [selling_continuous_total],
+        '合計額': [selling_all],
+        '備考':['なし'],
+    })
+    st.session_state.df = pd.concat([st.session_state.df, new_row], ignore_index=True)
+
+# 編集可能な表の表示
+edited_df = st.data_editor(
+    st.session_state.df,
+    num_rows="fixed",
+    use_container_width=True,
+    column_config={
+        '予算額': {"editable": False},
+        'ジャンル': {"editable": False},
+        '制度数': {"editable": False},
+        '自治体数': {"editable": False},
+        '追加費用_初期':{"editable": False},
+        '初期費用':{"editable": False},
+        '更新回数':{"editable": False},
+        '追加費用_更新':{"editable": False},
+        '更新費用':{"editable": False},
+        '合計額':{"editable": False},
+    }
+)
+
+# 編集された表をセッション状態に保存
+st.session_state.df = edited_df
+
+# 現在の表の内容を表示（オプション）
+# st.write("現在の表の内容:")
+# st.write(st.session_state.df)
+
+# ダウンロード設定
+now = datetime.datetime.now().strftime('%Y%m%d')
+edited_df.to_csv(buf := BytesIO(), index=False,encoding='utf-8-sig',date_format="%Y/%m/%d %H:%M:%S")
+
+
+st.download_button(
+        "csvのダウンロード",buf.getvalue(),f"ジモトク試算_{now}.csv",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+edited_df.to_excel(buf := BytesIO(), index=False,na_rep='')
+st.download_button(
+    "エクセルのダウンロード",
+    buf.getvalue(),
+    f"ジモトク試算_{now}.xlsx",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  )
     
 
 # def change_gif_speed(image, speed_factor):
