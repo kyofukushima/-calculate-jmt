@@ -8,22 +8,9 @@ from PIL import Image
 import io
 from io import BytesIO
 
-# st.markdown("""
-# <style>
-# .stNumberInput input {
-#     text-align: right;
-# }
-# .stNumberInput::before {
-#     content: "¥";
-#     position: absolute;
-#     left: 5px;
-#     top: 50%;
-#     transform: translateY(-50%);
-# }
-# </style>
-# """, unsafe_allow_html=True)
 # 関数の設定
-# パスワード認証関数
+# 
+
 def authenticate(password):
     if str(st.secrets['SALES']['pass']) == str(password):
         st.sidebar.success('認証成功')
@@ -39,16 +26,6 @@ st.title('費用試算')
 if 'sales_mode' not in st.session_state:
     # st.write('初期値の設定')
     st.session_state['sales_mode'] = False
-
-
-# p_word = st.text_input('setting',type='password')
-# st.write(p_word)
-# st.write(st.secrets['SALES']['pass'])
-# if str(st.secrets['SALES']['pass']) == str(p_word):
-#     st.write('認証成功')
-#     st.session_state['sales_mode'] = True
-# else:
-#     st.session_state['sales_mode'] = False
 
 
 # st.write(st.session_state['sales_mode'])
@@ -77,8 +54,8 @@ if sales_on:
 tanka_simple_dict = st.secrets[mode]['単価']['シンプル']
 profit_rate = st.secrets['SALES']['利益率']
 if st.session_state['sales_mode'] == True:
-     initial_price = st.sidebar.number_input('初期単価（¥）', min_value=0, value=tanka_simple_dict['新規'])
-     continuous_price = st.sidebar.number_input('継続単価（¥）', min_value=0, value=tanka_simple_dict['更新'])
+     initial_price = st.sidebar.number_input('初期単価（¥）', min_value=0.0, value=tanka_simple_dict['新規'])
+     continuous_price = st.sidebar.number_input('継続単価（¥）', min_value=0.0, value=tanka_simple_dict['更新'])
      profit_rate = st.sidebar.number_input('利益率', min_value=0.0, value=st.secrets['SALES']['利益率'])
 
 else:
@@ -92,8 +69,8 @@ area_count = container1.number_input('対象自治体数', min_value=1, value=5)
 purchase_frequency = container1.number_input('更新回数（年）', min_value=0, value=st.secrets[mode]['更新回数'])
 container1.header('その他費用の設定')
 container1.subheader('追加費用')
-other_initial_cost = container1.number_input('初期費用（¥）', min_value=0, value=0)
-other_continuous_cost = container1.number_input('更新費用（¥）', min_value=0, value=0)
+other_initial_cost = container1.number_input('初期費用（¥）', min_value=0.0, value=0.0)
+other_continuous_cost = container1.number_input('更新費用（¥）', min_value=0.0, value=0.0)
 
 # 計算
 ## 初期費
@@ -123,28 +100,10 @@ with st.container(border=True):
                 )
     if diff_selling_all_budget > 0:
         total_metric('normal')
-        # st.metric(f'初期費用＋更新費用（年{purchase_frequency}回）',
-        #         value=f'¥{selling_all:,.0f}',
-        #         delta=f'¥{diff_selling_all_budget:,.0f}',
-        #         delta_color='normal',
-        #         help=metric_help_text,
-        #         )
     elif diff_selling_all_budget < 0:
         total_metric('inverse')
-        # st.metric(f'初期費用＋更新費用（年{purchase_frequency}回）',
-        #         value=f'¥{selling_all:,.0f}',
-        #         delta=f'¥{diff_selling_all_budget:,.0f}',
-        #         delta_color='inverse',
-        #         help=metric_help_text,
-        #         )
     else:
         total_metric('off')
-        # st.metric(f'初期費用＋更新費用（年{purchase_frequency}回）',
-        #         value=f'¥{selling_all:,.0f}',
-        #         delta=f'¥{diff_selling_all_budget:,.0f}',
-        #         delta_color='none',
-        #         help=metric_help_text,
-        #         )
 col1, col2 = st.columns(2,border=True)
 with col1:
     st.subheader('初期費用')
@@ -157,18 +116,6 @@ with col2:
     st.metric(f'見積価格',f'¥{selling_continuous_total:,.0f}')
     if st.session_state['sales_mode'] == True:
         st.metric(f'社内原価',f'¥{continuous_total:,.0f}')
-# with col1:
-#     st.subheader('社内原価')
-#     col1_1, col1_2 = st.columns(2)
-#     col1_1.metric(label="初期費用",value=f'¥{initial_total:,}')
-#     col1_2.metric(label=f"更新費用（年{purchase_frequency}回）",value=f'¥{continuous_total}')
-# with col2:
-#     st.subheader('費用見積もり')
-#     col2_1, col2_2 = st.columns(2)
-    
-#     col2_1.metric(label="初期費用",value=f'¥{selling_initial_total:,}')
-#     col2_2.metric(label=f"更新費用（年{purchase_frequency}回）",value=f'¥{continuous_total}')    
-    
 
 # グラフ作成
 # st.header('数値の関係性')
@@ -266,19 +213,6 @@ st.write('青色: 予算内, 赤色: 予算超過')
 st.header('メモ')
 st.write('一番右の「備考」列のみ編集可')
 
-# p_word = st.text_input('setting',type='password')
-# st.write(p_word)
-# st.write(st.secrets['SALES']['pass'])
-# if str(st.secrets['SALES']['pass']) == str(p_word):
-#     st.write('認証成功')
-#     st.session_state['sales_mode'] = True
-
-#     #st.rerun()  # アプリを再実行して変更を反映
-# elif str(st.secrets['SALES']['pass']) != str(p_word):
-#     st.session_state['sales_mode'] = False
-
-# st.write(st.session_state['sales_mode'])
-
 # セッション状態の初期化
 if 'df' not in st.session_state:
     st.session_state.df = pd.DataFrame({
@@ -338,10 +272,6 @@ edited_df = st.data_editor(
 # 編集された表をセッション状態に保存
 st.session_state.df = edited_df
 
-# 現在の表の内容を表示（オプション）
-# st.write("現在の表の内容:")
-# st.write(st.session_state.df)
-
 # ダウンロード設定
 now = datetime.datetime.now().strftime('%Y%m%d')
 edited_df.to_csv(buf := BytesIO(), index=False,encoding='utf-8-sig',date_format="%Y/%m/%d %H:%M:%S")
@@ -359,26 +289,3 @@ st.download_button(
     f"ジモトク試算_{now}.xlsx",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   )
-    
-
-# def change_gif_speed(image, speed_factor):
-#     frames = []
-#     for frame in range(image.n_frames):
-#         image.seek(frame)
-#         frames.append(image.copy())
-    
-#     output = io.BytesIO()
-#     frames[0].save(output, format='GIF', append_images=frames[1:],
-#                    save_all=True, duration=image.info['duration'] // speed_factor, loop=0)
-#     return output.getvalue()
-
-# st.title('GIF再生速度調整')
-
-# uploaded_file = st.file_uploader("GIF画像をアップロードしてください", type="gif")
-# if uploaded_file is not None:
-#     image = Image.open(uploaded_file)
-    
-#     speed_factor = st.slider('再生速度', min_value=0.01, max_value=3.0, value=1.0, step=0.01)
-    
-#     modified_gif = change_gif_speed(image, speed_factor)
-#     st.image(modified_gif)
