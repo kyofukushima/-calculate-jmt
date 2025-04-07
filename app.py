@@ -130,7 +130,7 @@ with col2:
 # fig = px.bar(df, x='項目', y='値', title='入力値の比較')
 # st.plotly_chart(fig)
 
-# 散布図（数量 vs 対象エリア数）
+# # 散布図（数量 vs 対象エリア数）
 # st.subheader('数量と対象エリア数の関係')
 # fig2 = px.scatter(x=[quantity], y=[area_count], 
 #                   labels={'x': '数量', 'y': '対象エリア数'},
@@ -289,3 +289,29 @@ st.download_button(
     f"ジモトク試算_{now}.xlsx",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   )
+
+# 地方ごとの集計表を追加
+st.header('地方別の自治体数')
+area_df = pd.read_csv('area_list_with_region.csv')
+
+# 都道府県数の集計
+prefecture_count = area_df[area_df['class'] == '都道府県'].groupby('地方').size().reset_index(name='都道府県数')
+
+# 自治体数の集計（都道府県を除く）
+municipality_count = area_df[area_df['class'] != '都道府県'].groupby('地方').size().reset_index(name='自治体数')
+
+# 集計結果の結合
+region_summary = pd.merge(prefecture_count, municipality_count, on='地方', how='outer')
+region_summary = region_summary.fillna(0).astype({'都道府県数': int, '自治体数': int})
+
+# 表の表示
+st.dataframe(region_summary, use_container_width=True)
+
+# グラフの表示
+col1, col2 = st.columns(2)
+with col1:
+    fig1 = px.bar(region_summary, x='地方', y='都道府県数', title='地方別都道府県数')
+    st.plotly_chart(fig1, use_container_width=True)
+with col2:
+    fig2 = px.bar(region_summary, x='地方', y='自治体数', title='地方別自治体数')
+    st.plotly_chart(fig2, use_container_width=True)
